@@ -1139,18 +1139,18 @@ uint32_t NimBLEDevice::getSecurityPasskey() {
 /**
  * @brief Start the connection securing and authorization for this connection.
  * @param connHandle The connection handle of the peer device.
- * @returns NimBLE stack return code, 0 = success.
+ * @param rcPtr Optional pointer to pass return code to caller.
+ * @returns True if started security, success = 0 or BLE_HS_EALREADY.
  */
-bool NimBLEDevice::startSecurity(uint16_t connHandle, int *rc) {
-    int _rc = 0;
-    if (rc == nullptr)
-        rc = &_rc;
-    *rc = ble_gap_security_initiate(connHandle);
-    if (*rc != 0) {
-        NIMBLE_LOGE(LOG_TAG, "ble_gap_security_initiate: rc=%d %s", *rc, NimBLEUtils::returnCodeToString(*rc));
+bool NimBLEDevice::startSecurity(uint16_t connHandle, int* rcPtr) {
+    int rc = ble_gap_security_initiate(connHandle);
+    if (rc != 0) {
+        NIMBLE_LOGE(LOG_TAG, "ble_gap_security_initiate: rc=%d %s", rc, NimBLEUtils::returnCodeToString(rc));
     }
-
-    return *rc == 0 || *rc == BLE_HS_EALREADY;
+    if (rcPtr) {
+        *rcPtr = rc;
+    }
+    return rc == 0 || rc == BLE_HS_EALREADY;
 } // startSecurity
 
 /**
