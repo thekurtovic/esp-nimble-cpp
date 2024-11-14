@@ -64,7 +64,7 @@ class NimBLEClient {
     bool           setConnection(uint16_t connHandle);
     uint16_t       getMTU() const;
     bool           exchangeMTU();
-    bool           secureConnection() const;
+    bool           secureConnection(bool async = false);
     void           setConnectTimeout(uint32_t timeout);
     bool           setDataLen(uint16_t txOctets);
     bool           discoverAttributes();
@@ -120,6 +120,7 @@ class NimBLEClient {
     bool                              m_deleteCallbacks;
     bool                              m_connEstablished;
     bool                              m_asyncConnect;
+    bool                              m_asyncSecure;
     bool                              m_exchangeMTU;
 # if CONFIG_BT_NIMBLE_EXT_ADV
     uint8_t m_phyMask;

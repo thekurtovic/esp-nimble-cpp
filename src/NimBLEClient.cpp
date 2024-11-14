@@ -66,6 +66,7 @@ NimBLEClient::NimBLEClient(const NimBLEAddress& peerAddress)
       m_deleteCallbacks{false},
       m_connEstablished{false},
       m_asyncConnect{false},
+      m_asyncSecure{false},
       m_exchangeMTU{true},
 # if CONFIG_BT_NIMBLE_EXT_ADV
       m_phyMask{BLE_GAP_LE_PHY_1M_MASK | BLE_GAP_LE_PHY_2M_MASK | BLE_GAP_LE_PHY_CODED_MASK},
@@ -313,16 +314,42 @@ bool NimBLEClient::connect(const NimBLEAddress& address, bool deleteAttributes, 
  * @return True on success.
  * @details This is a blocking function and should not be used in a callback.
  */
-bool NimBLEClient::secureConnection() const {
+bool NimBLEClient::secureConnection(bool async) {
     NIMBLE_LOGD(LOG_TAG, ">> secureConnection()");
+
+    if (!NimBLEDevice::m_synced) {
+        NIMBLE_LOGE(LOG_TAG, "Host reset, wait for sync.");
+        return false;
+    }
+
+    if (NimBLEDevice::isSecureInProgress()) {
+        NIMBLE_LOGE(LOG_TAG, "Secure already in progress");
+        return false;
+    }
+
+    m_asyncSecure = async;
+
+    // Set the secure in progress flag to prevent a scan from starting while securing.
+    NimBLEDevice::setSecureInProgress(true);
+
+    int rc = 0;
+    if (!NimBLEDevice::startSecurity(m_connHandle, &rc)) {
+        m_lastErr = rc;
+        m_asyncSecure = false;
+        NimBLEDevice::setSecureInProgress(false);
+        NIMBLE_LOGE(LOG_TAG, "secureConnection: failed to start rc=%d", rc);
+        return false;
+    }
+
+    if (m_asyncSecure) {
+        return true;
+    }
 
     NimBLETaskData taskData(const_cast<NimBLEClient*>(this), BLE_HS_ENOTCONN);
     m_pTaskData    = &taskData;
     int retryCount = 1;
     do {
-        if (NimBLEDevice::startSecurity(m_connHandle)) {
-            NimBLEUtils::taskWait(taskData, BLE_NPL_TIME_FOREVER);
-        }
+        NimBLEUtils::taskWait(taskData, BLE_NPL_TIME_FOREVER);
     } while (taskData.m_flags == (BLE_HS_ERR_HCI_BASE + BLE_ERR_PINKEY_MISSING) && retryCount--);
 
     m_pTaskData = nullptr;
@@ -1087,6 +1114,7 @@ int NimBLEClient::handleGapEvent(struct ble_gap_event* event, void* arg) {
                 return 0;
             }
 
+            NimBLEDevice::setSecureInProgress(false);
             if (event->enc_change.status == 0 ||
                 event->enc_change.status == (BLE_HS_ERR_HCI_BASE + BLE_ERR_PINKEY_MISSING)) {
                 NimBLEConnInfo peerInfo;

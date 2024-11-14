@@ -103,6 +103,7 @@ uint8_t                    NimBLEDevice::m_ownAddrType{BLE_OWN_ADDR_PUBLIC};
 
 # if defined(CONFIG_BT_NIMBLE_ROLE_CENTRAL) || defined(CONFIG_BT_NIMBLE_ROLE_PERIPHERAL)
 bool NimBLEDevice::m_connectionInProgress{false};
+bool NimBLEDevice::m_secureInProgress{false};
 # endif
 
 # ifdef ESP_PLATFORM
@@ -1140,13 +1141,16 @@ uint32_t NimBLEDevice::getSecurityPasskey() {
  * @param connHandle The connection handle of the peer device.
  * @returns NimBLE stack return code, 0 = success.
  */
-bool NimBLEDevice::startSecurity(uint16_t connHandle) {
-    int rc = ble_gap_security_initiate(connHandle);
-    if (rc != 0) {
-        NIMBLE_LOGE(LOG_TAG, "ble_gap_security_initiate: rc=%d %s", rc, NimBLEUtils::returnCodeToString(rc));
+bool NimBLEDevice::startSecurity(uint16_t connHandle, int *rc) {
+    int _rc = 0;
+    if (rc == nullptr)
+        rc = &_rc;
+    *rc = ble_gap_security_initiate(connHandle);
+    if (*rc != 0) {
+        NIMBLE_LOGE(LOG_TAG, "ble_gap_security_initiate: rc=%d %s", *rc, NimBLEUtils::returnCodeToString(*rc));
     }
 
-    return rc == 0 || rc == BLE_HS_EALREADY;
+    return *rc == 0 || *rc == BLE_HS_EALREADY;
 } // startSecurity
 
 /**
@@ -1267,6 +1271,23 @@ void NimBLEDevice::setConnectionInProgress(bool inProgress) {
 bool NimBLEDevice::isConnectionInProgress() {
     return m_connectionInProgress;
 } // isConnectionInProgress
+
+/**
+ * @brief Set the secure in progress flag.
+ * @param [in] inProgress The secure in progress flag.
+ * @details This is used to prevent a scan from starting while a secure is in progress.
+ */
+void NimBLEDevice::setSecureInProgress(bool inProgress) {
+    m_secureInProgress = inProgress;
+} // setSecureInProgress
+
+/**
+ * @brief Check if a secure is in progress.
+ * @return True if a secure is in progress.
+ */
+bool NimBLEDevice::isSecureInProgress() {
+    return m_secureInProgress;
+} // isSecureInProgress
 
 /**
  * @brief Return a string representation of the address of this device.
