@@ -120,7 +120,7 @@ class NimBLEClient {
     bool                              m_deleteCallbacks;
     bool                              m_connEstablished;
     bool                              m_asyncConnect;
-    bool                              m_asyncSecure;
+    uint8_t                           m_asyncSecureAttempt;
     bool                              m_exchangeMTU;
 # if CONFIG_BT_NIMBLE_EXT_ADV
     uint8_t m_phyMask;

@@ -66,7 +66,7 @@ NimBLEClient::NimBLEClient(const NimBLEAddress& peerAddress)
       m_deleteCallbacks{false},
       m_connEstablished{false},
       m_asyncConnect{false},
-      m_asyncSecure{false},
+      m_asyncSecureAttempt{0},
       m_exchangeMTU{true},
 # if CONFIG_BT_NIMBLE_EXT_ADV
       m_phyMask{BLE_GAP_LE_PHY_1M_MASK | BLE_GAP_LE_PHY_2M_MASK | BLE_GAP_LE_PHY_CODED_MASK},
@@ -327,21 +327,20 @@ bool NimBLEClient::secureConnection(bool async) {
         return false;
     }
 
-    m_asyncSecure = async;
-
     // Set the secure in progress flag to prevent a scan from starting while securing.
     NimBLEDevice::setSecureInProgress(true);
 
     int rc = 0;
-    if (!NimBLEDevice::startSecurity(m_connHandle, &rc)) {
+    if (async && !NimBLEDevice::startSecurity(m_connHandle, &rc)) {
         m_lastErr = rc;
-        m_asyncSecure = false;
+        m_asyncSecureAttempt = 0;
         NimBLEDevice::setSecureInProgress(false);
         NIMBLE_LOGE(LOG_TAG, "secureConnection: failed to start rc=%d", rc);
         return false;
     }
 
-    if (m_asyncSecure) {
+    if (async) {
+        m_asyncSecureAttempt++;
         return true;
     }
 
@@ -349,7 +348,9 @@ bool NimBLEClient::secureConnection(bool async) {
     m_pTaskData    = &taskData;
     int retryCount = 1;
     do {
-        NimBLEUtils::taskWait(taskData, BLE_NPL_TIME_FOREVER);
+        if (NimBLEDevice::startSecurity(m_connHandle)) {
+            NimBLEUtils::taskWait(taskData, BLE_NPL_TIME_FOREVER);
+        }
     } while (taskData.m_flags == (BLE_HS_ERR_HCI_BASE + BLE_ERR_PINKEY_MISSING) && retryCount--);
 
     m_pTaskData = nullptr;
@@ -970,6 +971,7 @@ int NimBLEClient::handleGapEvent(struct ble_gap_event* event, void* arg) {
 
             NIMBLE_LOGI(LOG_TAG, "disconnect; reason=%d, %s", rc, NimBLEUtils::returnCodeToString(rc));
 
+            pClient->m_asyncSecureAttempt = 0;
             pClient->m_connEstablished = false;
             pClient->m_pClientCallbacks->onDisconnect(pClient, rc);
             break;
@@ -1127,8 +1129,13 @@ int NimBLEClient::handleGapEvent(struct ble_gap_event* event, void* arg) {
                 if (event->enc_change.status == (BLE_HS_ERR_HCI_BASE + BLE_ERR_PINKEY_MISSING)) {
                     // Key is missing, try deleting.
                     ble_store_util_delete_peer(&peerInfo.m_desc.peer_id_addr);
+                    // Attempt a retry if async secure failed.
+                    if (pClient->m_asyncSecureAttempt == 1) {
+                        pClient->secureConnection(true);
+                    }
                 } else {
                     pClient->m_pClientCallbacks->onAuthenticationComplete(peerInfo);
+                    pClient->m_asyncSecureAttempt = 0;
                 }
             }
 
