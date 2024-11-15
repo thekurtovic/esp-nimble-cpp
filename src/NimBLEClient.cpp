@@ -314,27 +314,13 @@ bool NimBLEClient::connect(const NimBLEAddress& address, bool deleteAttributes, 
  * @return True on success.
  * @details This is a blocking function and should not be used in a callback.
  */
-bool NimBLEClient::secureConnection(bool async) {
+bool NimBLEClient::secureConnection(bool async)  const {
     NIMBLE_LOGD(LOG_TAG, ">> secureConnection()");
-
-    if (!NimBLEDevice::m_synced) {
-        NIMBLE_LOGE(LOG_TAG, "Host reset, wait for sync.");
-        return false;
-    }
-
-    if (NimBLEDevice::isSecureInProgress()) {
-        NIMBLE_LOGE(LOG_TAG, "Secure already in progress");
-        return false;
-    }
-
-    // Set the secure in progress flag to prevent a scan from starting while securing.
-    NimBLEDevice::setSecureInProgress(true);
 
     int rc = 0;
     if (async && !NimBLEDevice::startSecurity(m_connHandle, &rc)) {
         m_lastErr = rc;
         m_asyncSecureAttempt = 0;
-        NimBLEDevice::setSecureInProgress(false);
         NIMBLE_LOGE(LOG_TAG, "secureConnection: failed to start rc=%d", rc);
         return false;
     }
@@ -1116,7 +1102,6 @@ int NimBLEClient::handleGapEvent(struct ble_gap_event* event, void* arg) {
                 return 0;
             }
 
-            NimBLEDevice::setSecureInProgress(false);
             if (event->enc_change.status == 0 ||
                 event->enc_change.status == (BLE_HS_ERR_HCI_BASE + BLE_ERR_PINKEY_MISSING)) {
                 NimBLEConnInfo peerInfo;

@@ -186,8 +186,6 @@ class NimBLEDevice {
     static NimBLEAddress getBondedAddress(int index);
     static void          setConnectionInProgress(bool inProgress);
     static bool          isConnectionInProgress();
-    static void          setSecureInProgress(bool inProgress);
-    static bool          isSecureInProgress();
 # endif
 
   private:
@@ -201,7 +199,6 @@ class NimBLEDevice {
 
 # if defined(CONFIG_BT_NIMBLE_ROLE_CENTRAL) || defined(CONFIG_BT_NIMBLE_ROLE_PERIPHERAL)
     static bool m_connectionInProgress;
-    static bool m_secureInProgress;
 # endif
 
 # if defined(CONFIG_BT_NIMBLE_ROLE_OBSERVER)

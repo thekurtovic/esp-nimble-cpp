@@ -19,7 +19,7 @@ const char* LOG_TAG = "NimBLERemoteValueAttribute";
 bool NimBLERemoteValueAttribute::writeValue(const uint8_t* data, size_t length, bool response) const {
     NIMBLE_LOGD(LOG_TAG, ">> writeValue()");
 
-    NimBLEClient*       pClient    = getClient();
+    const NimBLEClient* pClient    = getClient();
     int                 retryCount = 1;
     int                 rc         = 0;
     uint16_t            mtu        = pClient->getMTU() - 3;
@@ -109,7 +109,7 @@ NimBLEAttValue NimBLERemoteValueAttribute::readValue(time_t* timestamp) const {
     NIMBLE_LOGD(LOG_TAG, ">> readValue()");
 
     NimBLEAttValue      value{};
-    NimBLEClient*       pClient    = getClient();
+    const NimBLEClient* pClient    = getClient();
     int                 rc         = 0;
     int                 retryCount = 1;
     NimBLETaskData      taskData(const_cast<NimBLERemoteValueAttribute*>(this), 0, &value);
