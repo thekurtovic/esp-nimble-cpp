@@ -132,9 +132,9 @@ int NimBLERemoteService::characteristicDiscCB(uint16_t              connHandle,
                                               const ble_gatt_error* error,
                                               const ble_gatt_chr*   chr,
                                               void*                 arg) {
-    const int  rc          = error->status;
-    auto       pTaskData   = (NimBLETaskData*)arg;
-    const auto pSvc        = (NimBLERemoteService*)pTaskData->m_pInstance;
+    const int  rc        = error->status;
+    auto       pTaskData = (NimBLETaskData*)arg;
+    const auto pSvc      = (NimBLERemoteService*)pTaskData->m_pInstance;
     NIMBLE_LOGD(LOG_TAG, "Characteristic Discovery >> status: %d handle: %d", rc, (rc == 0) ? chr->def_handle : -1);
 
     // Make sure the discovery is for this device
