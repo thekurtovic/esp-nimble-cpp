@@ -1242,6 +1242,23 @@ bool NimBLEDevice::setCustomGapHandler(gap_event_handler handler) {
 } // setCustomGapHandler
 
 /**
+ * @brief TODO
+ */
+bool NimBLEDevice::setCommonGapFactor(bool enable, uint32_t factorMs) {
+    int rc = 0;
+
+# if defined(CONFIG_BT_NIMBLE_OPTIMIZE_MULTI_CONN)
+    rc = ble_gap_common_factor_set(enable, (factorMs * 1000) / 625);
+    if (0 != rc) {
+        NIMBLE_LOGE(LOG_TAG, "ble_gap_common_factor_set: rc=%d %s",
+                    rc, NimBLEUtils::returnCodeToString(rc));
+    }
+# endif
+
+    return 0 == rc;
+} // setCommonGapFactor
+
+/**
  * @brief Return a string representation of the address of this device.
  * @return A string representation of this device address.
  */

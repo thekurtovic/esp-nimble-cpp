@@ -27,6 +27,11 @@
 #  include "nimble/nimble/host/include/host/ble_gap.h"
 # endif
 
+// ESP32-C5/C6/C61/H2 only
+# if !defined(CONFIG_BT_NIMBLE_OPTIMIZE_MULTI_CONN)
+#  define ble_gap_multi_conn_params void
+# endif
+
 # include "NimBLEAddress.h"
 
 # include <stdint.h>
@@ -48,12 +53,15 @@ struct NimBLETaskData;
  */
 class NimBLEClient {
   public:
-    bool connect(const NimBLEAdvertisedDevice* device,
-                 bool                          deleteAttributes = true,
-                 bool                          asyncConnect     = false,
-                 bool                          exchangeMTU      = true);
-    bool connect(const NimBLEAddress& address, bool deleteAttributes = true, bool asyncConnect = false, bool exchangeMTU = true);
-    bool           connect(bool deleteAttributes = true, bool asyncConnect = false, bool exchangeMTU = true);
+    bool           connect(const NimBLEAddress&       address,
+                           bool                       deleteAttr   = true,
+                           bool                       async        = false,
+                           bool                       exchangeMTU  = true,
+                           ble_gap_multi_conn_params* mcp          = nullptr);
+    bool           connect(bool                       deleteAttr   = true,
+                           bool                       async        = false,
+                           bool                       exchangeMTU  = true,
+                           ble_gap_multi_conn_params* mcp          = nullptr);
     bool           disconnect(uint8_t reason = BLE_ERR_REM_USER_CONN_TERM);
     bool           cancelConnect() const;
     void           setSelfDelete(bool deleteOnDisconnect, bool deleteOnConnectFail);

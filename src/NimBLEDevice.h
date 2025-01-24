@@ -132,6 +132,7 @@ class NimBLEDevice {
     static void          setScanDuplicateCacheSize(uint16_t cacheSize);
     static void          setScanFilterMode(uint8_t type);
     static bool          setCustomGapHandler(gap_event_handler handler);
+    static bool          setCommonGapFactor(bool enable, uint32_t factorMs);
     static void          setSecurityAuth(bool bonding, bool mitm, bool sc);
     static void          setSecurityAuth(uint8_t auth);
     static void          setSecurityIOCap(uint8_t iocap);

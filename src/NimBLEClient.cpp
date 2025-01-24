@@ -30,6 +30,17 @@
 #  include "nimble/porting/nimble/include/nimble/nimble_port.h"
 # endif
 
+// ESP32-C5/C6/C61/H2 only
+# if !defined(CONFIG_BT_NIMBLE_OPTIMIZE_MULTI_CONN)
+#  define ble_gap_multi_connect(a, cb, ptr) 0
+# endif
+
+# if CONFIG_BT_NIMBLE_EXT_ADV
+#  define nimble_gap_connect(a, to, phy, cp, cb, ptr) ble_gap_ext_connect(NimBLEDevice::m_ownAddrType,a,to,phy,cp,cp,cp,cb,ptr)
+# else
+#  define nimble_gap_connect(a, to, phy, cp, cb, ptr) ble_gap_connect(NimBLEDevice::m_ownAddrType,a,to,cp,cb,ptr)
+# endif
+
 # include <climits>
 
 static const char*           LOG_TAG = "NimBLEClient";
@@ -129,46 +140,30 @@ size_t NimBLEClient::deleteService(const NimBLEUUID& uuid) {
 /**
  * @brief Connect to the BLE Server using the address of the last connected device, or the address\n
  * passed to the constructor.
- * @param [in] deleteAttributes If true this will delete any attribute objects this client may already\n
+ * @param [in] deleteAttr If true this will delete any attribute objects this client may already\n
  * have created when last connected.
- * @param [in] asyncConnect If true, the connection will be made asynchronously and this function will return immediately.\n
+ * @param [in] async If true, the connection will be made asynchronously and this function will return immediately.\n
  * If false, this function will block until the connection is established or the connection attempt times out.
  * @param [in] exchangeMTU If true, the client will attempt to exchange MTU with the server after connection.\n
  * If false, the client will use the default MTU size and the application will need to call exchangeMTU() later.
  * @return true on success.
  */
-bool NimBLEClient::connect(bool deleteAttributes, bool asyncConnect, bool exchangeMTU) {
-    return connect(m_peerAddress, deleteAttributes, asyncConnect, exchangeMTU);
-} // connect
-
-/**
- * @brief Connect to an advertising device.
- * @param [in] device The device to connect to.
- * @param [in] deleteAttributes If true this will delete any attribute objects this client may already\n
- * have created when last connected.
- * @param [in] asyncConnect If true, the connection will be made asynchronously and this function will return immediately.\n
- * If false, this function will block until the connection is established or the connection attempt times out.
- * @param [in] exchangeMTU If true, the client will attempt to exchange MTU with the server after connection.\n
- * If false, the client will use the default MTU size and the application will need to call exchangeMTU() later.
- * @return true on success.
- */
-bool NimBLEClient::connect(const NimBLEAdvertisedDevice* device, bool deleteAttributes, bool asyncConnect, bool exchangeMTU) {
-    NimBLEAddress address(device->getAddress());
-    return connect(address, deleteAttributes, asyncConnect, exchangeMTU);
+bool NimBLEClient::connect(bool deleteAttr, bool async, bool exchangeMTU, ble_gap_multi_conn_params* mcp) {
+    return connect(m_peerAddress, deleteAttr, async, exchangeMTU, mcp);
 } // connect
 
 /**
  * @brief Connect to a BLE Server by address.
  * @param [in] address The address of the server.
- * @param [in] deleteAttributes If true this will delete any attribute objects this client may already\n
+ * @param [in] deleteAttr If true this will delete any attribute objects this client may already\n
  * have created when last connected.
- * @param [in] asyncConnect If true, the connection will be made asynchronously and this function will return immediately.\n
+ * @param [in] async If true, the connection will be made asynchronously and this function will return immediately.\n
  * If false, this function will block until the connection is established or the connection attempt times out.
  * @param [in] exchangeMTU If true, the client will attempt to exchange MTU with the server after connection.\n
  * If false, the client will use the default MTU size and the application will need to call exchangeMTU() later.
  * @return true on success.
  */
-bool NimBLEClient::connect(const NimBLEAddress& address, bool deleteAttributes, bool asyncConnect, bool exchangeMTU) {
+bool NimBLEClient::connect(const NimBLEAddress& address, bool deleteAttr, bool async, bool exchangeMTU, ble_gap_multi_conn_params* mcp) {
     NIMBLE_LOGD(LOG_TAG, ">> connect(%s)", address.toString().c_str());
 
     if (!NimBLEDevice::m_synced) {
@@ -194,34 +189,17 @@ bool NimBLEClient::connect(const NimBLEAddress& address, bool deleteAttributes, 
         m_peerAddress = address;
     }
 
-    if (deleteAttributes) {
+    if (deleteAttr) {
         deleteServices();
     }
 
     int rc                = 0;
-    m_config.asyncConnect = asyncConnect;
+    m_config.asyncConnect = async;
     m_config.exchangeMTU  = exchangeMTU;
 
     do {
-# if CONFIG_BT_NIMBLE_EXT_ADV
-        rc = ble_gap_ext_connect(NimBLEDevice::m_ownAddrType,
-                                 peerAddr,
-                                 m_connectTimeout,
-                                 m_phyMask,
-                                 &m_connParams,
-                                 &m_connParams,
-                                 &m_connParams,
-                                 NimBLEClient::handleGapEvent,
-                                 this);
-
-# else
-        rc = ble_gap_connect(NimBLEDevice::m_ownAddrType,
-                             peerAddr,
-                             m_connectTimeout,
-                             &m_connParams,
-                             NimBLEClient::handleGapEvent,
-                             this);
-# endif
+        rc = mcp ? ble_gap_multi_connect(mcp, handleGapEvent, this)
+                 : nimble_gap_connect(peerAddr, m_connectTimeout, m_phyMask, &m_connParams, handleGapEvent, this);
         switch (rc) {
             case 0:
                 break;
